@@ -8,8 +8,22 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 5
+    Timeout: 10
     MemorySize: 128
+
+    LoggingConfig:
+      # Allowed values: Text | JSON
+      LogFormat: Text
+
+Parameters:
+  Debug:
+    Type: String
+    Description: Debug flag
+    Default: "false"
+  Environment: 
+    Type: String
+    Description: environment
+    Default: "development"
 
 Resources:
   HeartbeatFunction:
@@ -27,7 +41,20 @@ Resources:
         InvokeMode: BUFFERED
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
-          PARAM1: VALUE
+          DEBUG: !Ref Debug
+          #SECRETARN: !Ref SecretConfig
+          APP_ENVIRONMENT: !Ref Environment
+      Tags: 
+        cost-reporter-team: data-plane-infra
+        cost-reporter-service: heartbeat
+        environment: !Ref Environment
+
+  #SecretConfig:
+  #  Type: AWS::SecretsManager::Secret
+  #  Properties: 
+  #    Description: Configuration for okta-k8s-bridge lambda
+  #    Name: !Sub 'okta-k8s-bridge-${Environment}' 
+  #    SecretString: "{}"
 
 Outputs:
   HeartbeatFunction:
