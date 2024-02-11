@@ -30,11 +30,11 @@ Resources:
     Properties:
       FunctionName: !Sub 'heartbeat-${Environment}'
       ReservedConcurrentExecutions: 10
-      CodeUri: heartbeat/
+      CodeUri: service/heartbeat/
       Handler: heartbeat
       Runtime: go1.x
-      Architectures:
-      - x86_64
+      Architectures:                                                                                                                                                                                           
+      - x86_64  
       AutoPublishAlias: live
       FunctionUrlConfig:
         AuthType: NONE

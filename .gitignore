@@ -33,3 +33,5 @@ layer.zip
 samconfig.toml
 
 packaged.yaml
+packaged-*.yaml
+packaged_*.yaml
