@@ -12,7 +12,7 @@ Globals:
     MemorySize: 128
 
 Resources:
-  HelloWorldFunction:
+  HeartbeatFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Metadata:
       BuildMethod: go1.x
@@ -27,9 +27,9 @@ Resources:
           PARAM1: VALUE
 
 Outputs:
-  HelloWorldFunction:
+  HeartbeatFunction:
     Description: "First Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
+    Value: !GetAtt HeartbeatFunction.Arn
+  HeartbeatFunctionIamRole:
     Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+    Value: !GetAtt HeartbeatFunctionRole.Arn
