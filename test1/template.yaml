@@ -25,14 +25,21 @@ Globals:
     LoggingConfig:
       LogFormat: JSON
 Resources:
+  #MyFunctionLogGroup:
+  #  Type: AWS::Logs::LogGroup
+  #  Properties:
+  #    LogGroupName: !Sub /aws/lambda/${MyFunction}
+  #    RetentionInDays: 7
   HeartbeatFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Metadata:
+      BuildMethod: makefile
     Properties:
       FunctionName: !Sub 'heartbeat-${Environment}'
       ReservedConcurrentExecutions: 10
-      CodeUri: service/heartbeat/
-      Handler: heartbeat
-      Runtime: go1.x
+      CodeUri: ./heartbeat.
+      Handler: bootstrap
+      Runtime: provided.al2023
       Architectures:                                                                                                                                                                                           
       - x86_64  
       AutoPublishAlias: live

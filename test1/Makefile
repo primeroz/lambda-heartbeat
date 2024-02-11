@@ -3,12 +3,11 @@ SAM_CONFIG_FILE = samconfig.toml
 STACK_NAME = heartbeat-manager
 
 clean:
-	rm -f heartbeat packaged_*.yaml
+	rm -f packaged_*.yaml
 	rm -rf .aws-sam/
 
 build: clean
 	sam build
-	cp .aws-sam/build/HeartbeatFunction/heartbeat .
 
 package: build
 	sam package \
@@ -30,9 +29,8 @@ deploy: build
 		--config-env ${CONFIG_ENV} \
 		--s3-prefix "heartbeat-manager" \
 		--region ${REGION} \
-		--profile ${PROFILE} \
 		--capabilities CAPABILITY_IAM \
-		--force-upload
+		--profile ${PROFILE}
 
 #deploy:
 #	sam deploy \
