@@ -1,28 +1,68 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"encoding/json"
+	"log"
+	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	alert "github.com/prometheus/alertmanager/template"
 )
 
-func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	var greeting string
-	sourceIP := request.RequestContext.Identity.SourceIP
+// validateLabels checks if the required labels are present in the alert
+func validateLabels(alert alert.Alert) bool {
+	requiredLabels := []string{"region", "cloud", "env", "cell", "cluster_type", "kubernetes_cluster_name"}
+	for _, label := range requiredLabels {
+		if _, ok := alert.Labels[label]; !ok {
+			return false
+		}
+	}
+	return true
+}
 
-	if sourceIP == "" {
-		greeting = "Hello, world!\n"
-	} else {
-		greeting = fmt.Sprintf("Hello, %s!\n", sourceIP)
+// handleAlert handles incoming Alertmanager webhook alerts
+func handleAlert(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	var data alert.Data
+	if err := json.Unmarshal([]byte(request.Body), &data); err != nil {
+		log.Printf("Failed to parse Alertmanager webhook payload: %v", err)
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusBadRequest,
+			Body:       "Failed to parse Alertmanager webhook payload",
+		}, nil
 	}
 
+	// Check if the alert is a "watchdog" alert
+	if data.GroupLabels["alertname"] != "Watchdog" {
+		log.Println("Received non-watchdog alert. Ignoring.")
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusOK,
+			Body:       "Only watchdog alerts are processed by this webhook.",
+		}, nil
+	}
+
+	// Validate labels
+	for _, alert := range data.Alerts {
+		if !validateLabels(alert) {
+			log.Println("Missing required labels in the alert. Ignoring.")
+			return events.APIGatewayProxyResponse{
+				StatusCode: http.StatusBadRequest,
+				Body:       "Alert is missing required labels.",
+			}, nil
+		}
+	}
+
+	// Process "watchdog" alerts
+	log.Println("Received watchdog alert with status:", data.Status)
+
+	// Respond with success message
 	return events.APIGatewayProxyResponse{
-		Body:       greeting,
-		StatusCode: 200,
+		StatusCode: http.StatusOK,
+		Body:       "Watchdog alert received successfully",
 	}, nil
 }
 
 func main() {
-	lambda.Start(handler)
+	lambda.Start(handleAlert)
 }
