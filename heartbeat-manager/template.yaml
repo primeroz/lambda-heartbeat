@@ -24,6 +24,10 @@ Parameters:
     Type: String
     Description: environment
     Default: "development"
+  MetricsNamespace: 
+    Type: String
+    Description: Metrics Namespace
+    Default: "PrometheusHeartbeats"
 
 Resources:
   HeartbeatFunction:
@@ -39,6 +43,14 @@ Resources:
       Runtime: provided.al2023
       Architectures:
         - x86_64
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: AllowPutMetricData
+              Effect: Allow
+              Action:
+                - cloudwatch:PutMetricData
+              Resource: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:namespace/${MetricsNamespace}"
       FunctionUrlConfig:
         AuthType: NONE
         InvokeMode: BUFFERED
@@ -47,6 +59,7 @@ Resources:
           DEBUG: !Ref Debug
           #SECRETARN: !Ref SecretConfig
           APP_ENVIRONMENT: !Ref Environment
+          METRICS_NAMESPACE: !Ref MetricsNamespace
       Tags: 
         cost-reporter-team: data-plane-infra
         cost-reporter-service: heartbeat

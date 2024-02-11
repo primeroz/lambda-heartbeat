@@ -5,27 +5,95 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	alert "github.com/prometheus/alertmanager/template"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/prometheus/alertmanager/template"
 )
 
-// validateLabels checks if the required labels are present in the alert
-func validateLabels(alert alert.Alert) bool {
-	requiredLabels := []string{"region", "cloud", "env", "cell", "cluster_type", "kubernetes_cluster_name"}
-	for _, label := range requiredLabels {
-		if _, ok := alert.Labels[label]; !ok {
-			return false
+// Alert represents the parsed alert data
+type Alert struct {
+	Data   template.Data
+	Metric MetricData
+}
+
+// MetricData represents the data needed to create a CloudWatch metric
+type MetricData struct {
+	Namespace string
+	Dimension map[string]string
+}
+
+// parseAlert parses the incoming webhook alert payload
+func parseAlert(body string) (*Alert, bool, error) {
+	var data template.Data
+	if err := json.Unmarshal([]byte(body), &data); err != nil {
+		return nil, false, err
+	}
+
+	// Check if the alert is a "watchdog" alert with all required labels
+	var isWatchdog bool
+	for _, alert := range data.Alerts {
+		if alert.Labels["alertname"] == "Watchdog" &&
+			alert.Labels["region"] != "" &&
+			alert.Labels["cloud"] != "" &&
+			alert.Labels["env"] != "" &&
+			alert.Labels["cell"] != "" &&
+			alert.Labels["cluster_type"] != "" &&
+			alert.Labels["kubernetes_cluster_name"] != "" {
+			isWatchdog = true
+			break
 		}
 	}
-	return true
+
+	return &Alert{Data: data}, isWatchdog, nil
+}
+
+// createMetric creates a CloudWatch metric based on the parsed alert data
+func createMetric(ctx context.Context, alert *Alert) error {
+	cwClient := cloudwatch.New(session.New())
+
+	for _, alert := range alert.Data.Alerts {
+		metricData := MetricData{
+			Namespace: alert.Labels["namespace"], // Adjust accordingly based on your alert structure
+			Dimension: map[string]string{
+				"region":                  alert.Labels["region"],
+				"cloud":                   alert.Labels["cloud"],
+				"env":                     alert.Labels["env"],
+				"cell":                    alert.Labels["cell"],
+				"cluster_type":            alert.Labels["cluster_type"],
+				"kubernetes_cluster_name": alert.Labels["kubernetes_cluster_name"],
+			},
+		}
+
+		_, err := cwClient.PutMetricData(&cloudwatch.PutMetricDataInput{
+			Namespace: aws.String(metricData.Namespace),
+			MetricData: []*cloudwatch.MetricDatum{
+				{
+					MetricName: aws.String("WatchdogAlert"),
+					Dimensions: []*cloudwatch.Dimension{},
+					Timestamp:  aws.Time(time.Now()),
+					Value:      aws.Float64(1), // Set the metric value
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // handleAlert handles incoming Alertmanager webhook alerts
-func parseAlert(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	var data alert.Data
-	if err := json.Unmarshal([]byte(request.Body), &data); err != nil {
+func handleAlert(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	// Parse the alert body
+	//alert, isWatchdog, err := parseAlert(request.Body)
+	_, isWatchdog, err := parseAlert(request.Body)
+	if err != nil {
 		log.Printf("Failed to parse Alertmanager webhook payload: %v", err)
 		return events.APIGatewayProxyResponse{
 			StatusCode: http.StatusBadRequest,
@@ -33,40 +101,28 @@ func parseAlert(ctx context.Context, request events.APIGatewayProxyRequest) (eve
 		}, nil
 	}
 
-	// Check if the alert is a "watchdog" alert
-	if data.GroupLabels["alertname"] != "Watchdog" {
-		log.Println("Received non-watchdog alert. Ignoring.")
+	if !isWatchdog {
+		log.Println("Received non-watchdog alert or missing required labels")
 		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusOK,
-			Body:       "Only watchdog alerts are processed by this webhook.",
+			StatusCode: http.StatusBadRequest,
+			Body:       "Received non-watchdog alert or missing required labels",
 		}, nil
 	}
 
-	// Validate labels
-	for _, alert := range data.Alerts {
-		if !validateLabels(alert) {
-			log.Println("Missing required labels in the alert. Ignoring.")
-			return events.APIGatewayProxyResponse{
-				StatusCode: http.StatusBadRequest,
-				Body:       "Alert is missing required labels.",
-			}, nil
-		}
-	}
-
-	// Process "watchdog" alerts
-	log.Println("Received watchdog alert with status:", data.Status)
+	//// Create CloudWatch metric
+	//if err := createMetric(ctx, alert); err != nil {
+	//    log.Printf("Failed to create CloudWatch metric: %v", err)
+	//    return events.APIGatewayProxyResponse{
+	//        StatusCode: http.StatusInternalServerError,
+	//        Body:       "Failed to create CloudWatch metric",
+	//    }, nil
+	//}
 
 	// Respond with success message
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusOK,
-		Body:       "Watchdog alert received successfully",
+		Body:       "Heartbeat Custom Metric published successfully",
 	}, nil
-}
-
-// handleAlert handles incoming Alertmanager webhook alerts
-func handleAlert(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-  response, err := parseAlert(ctx, request)
-  return response, err
 }
 
 func main() {

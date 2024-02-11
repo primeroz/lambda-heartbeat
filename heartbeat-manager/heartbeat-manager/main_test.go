@@ -1,130 +1,91 @@
 package main
 
 import (
-	"context"
 	"testing"
-
-	"github.com/aws/aws-lambda-go/events"
 )
 
-// TestParseAlert tests the HandleAlert function
 func TestParseAlert(t *testing.T) {
-	// Define a sample "watchdog" alert payload
-	payload := `{
-	  "version": "4",
-	  "groupKey": "example_group",
-	  "status": "firing",
-	  "receiver": "example_receiver",
-	  "groupLabels": {
-	    "alertname": "Watchdog"
-	  },
-	  "commonLabels": {
-	    "alertname": "Watchdog",
-	    "severity": "none",
-	    "region": "us-west-1",
-	    "cloud": "aws",
-	    "env": "production",
-	    "cell": "cell-1",
-	    "cluster_type": "kubernetes",
-	    "kubernetes_cluster_name": "my-cluster"
-	  },
-	  "commonAnnotations": {
-	    "summary": "Alertmanager instance has stopped receiving alerts."
-	  },
-	  "externalURL": "http://alertmanager.example.com",
-	  "alerts": [
-	    {
-	      "labels": {
-	        "alertname": "Watchdog",
-	        "severity": "none",
-	        "region": "us-west-1",
-	        "cloud": "aws",
-	        "env": "production",
-	        "cell": "cell-1",
-	        "cluster_type": "kubernetes",
-	        "kubernetes_cluster_name": "my-cluster"
-	      },
-	      "annotations": {
-	        "description": "Error rate is above 90% for the last 5 minutes."
-	      }
-	    }
-	  ]
-	}`
+	// Test case: Valid "watchdog" alert with all required labels
+	validWatchdogAlert := `{
+        "version": "4",
+        "groupKey": "{}:{alertname=\"Watchdog\", region=\"us-west-1\", cloud=\"aws\", env=\"production\", cell=\"cell-1\", cluster_type=\"kubernetes\", kubernetes_cluster_name=\"my-cluster\"}",
+        "commonAnnotations": {},
+        "commonLabels": {},
+        "alerts": [
+            {
+                "status": "firing",
+                "labels": {
+                    "alertname": "Watchdog",
+                    "region": "us-west-1",
+                    "cloud": "aws",
+                    "env": "production",
+                    "cell": "cell-1",
+                    "cluster_type": "kubernetes",
+                    "kubernetes_cluster_name": "my-cluster"
+                }
+            }
+        ]
+    }`
 
-	// Define the API Gateway event
-	event := events.APIGatewayProxyRequest{
-		Body: payload,
-	}
-
-	// Call the Lambda function handler
-	response, err := parseAlert(context.Background(), event)
+	_, isWatchdog, err := parseAlert(validWatchdogAlert)
 	if err != nil {
-		t.Errorf("HandleAlert failed: %v", err)
-		return
+		t.Errorf("Unexpected error: %v", err)
 	}
 
-	// Verify the response
-	if response.StatusCode != 200 {
-		t.Errorf("Unexpected status code: %d", response.StatusCode)
-	}
-	expectedBody := "Watchdog alert received successfully"
-	if response.Body != expectedBody {
-		t.Errorf("Unexpected body: got %s, want %s", response.Body, expectedBody)
-	}
-}
-
-// BenchmarkParseAlert benchmarks the HandleAlert function
-func BenchmarkParseAlert(b *testing.B) {
-	payload := `{
-	  "version": "4",
-	  "groupKey": "example_group",
-	  "status": "firing",
-	  "receiver": "example_receiver",
-	  "groupLabels": {
-	    "alertname": "Watchdog"
-	  },
-	  "commonLabels": {
-	    "alertname": "Watchdog",
-	    "severity": "none",
-	    "region": "us-west-1",
-	    "cloud": "aws",
-	    "env": "production",
-	    "cell": "cell-1",
-	    "cluster_type": "kubernetes",
-	    "kubernetes_cluster_name": "my-cluster"
-	  },
-	  "commonAnnotations": {
-	    "summary": "Alertmanager instance has stopped receiving alerts."
-	  },
-	  "externalURL": "http://alertmanager.example.com",
-	  "alerts": [
-	    {
-	      "labels": {
-	        "alertname": "Watchdog",
-	        "severity": "none",
-	        "region": "us-west-1",
-	        "cloud": "aws",
-	        "env": "production",
-	        "cell": "cell-1",
-	        "cluster_type": "kubernetes",
-	        "kubernetes_cluster_name": "my-cluster"
-	      },
-	      "annotations": {
-	        "description": "Error rate is above 90% for the last 5 minutes."
-	      }
-	    }
-	  ]
-	}`
-
-	event := events.APIGatewayProxyRequest{
-		Body: payload,
+	// Verify that parsing was successful
+	if !isWatchdog {
+		t.Errorf("Expected alert to be a watchdog alert, got false")
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := parseAlert(context.Background(), event)
-		if err != nil {
-			b.Fatalf("HandleAlert failed: %v", err)
-		}
+	// Test case: Non-watchdog alert
+	nonWatchdogAlert := `{
+        "version": "4",
+        "groupKey": "{}:{alertname=\"NonWatchdog\"}",
+        "commonAnnotations": {},
+        "commonLabels": {},
+        "alerts": [
+            {
+                "status": "firing",
+                "labels": {
+                    "alertname": "NonWatchdog"
+                }
+            }
+        ]
+    }`
+
+	_, isWatchdog, err = parseAlert(nonWatchdogAlert)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	// Verify that parsing was successful
+	if isWatchdog {
+		t.Errorf("Expected alert not to be a watchdog alert, got true")
+	}
+
+	// Test case: Watchdog alert missing required labels
+	missingLabelsAlert := `{
+        "version": "4",
+        "groupKey": "{}:{alertname=\"Watchdog\"}",
+        "commonAnnotations": {},
+        "commonLabels": {},
+        "alerts": [
+            {
+                "status": "firing",
+                "labels": {
+                    "alertname": "Watchdog"
+                }
+            }
+        ]
+    }`
+
+	_, isWatchdog, err = parseAlert(missingLabelsAlert)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	// Verify that parsing was successful
+	if isWatchdog {
+		t.Errorf("Expected alert not to be a watchdog alert, got true")
 	}
 }

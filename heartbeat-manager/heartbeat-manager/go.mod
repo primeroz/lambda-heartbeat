@@ -1,5 +1,6 @@
 require (
 	github.com/aws/aws-lambda-go v1.36.1
+	github.com/aws/aws-sdk-go v1.44.317
 	github.com/prometheus/alertmanager v0.26.0
 )
 
@@ -7,6 +8,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.15.1 // indirect
