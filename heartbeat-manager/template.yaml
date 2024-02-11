@@ -31,6 +31,9 @@ Resources:
     Metadata:
       BuildMethod: go1.x
     Properties:
+      FunctionName: !Sub 'heartbeat-${Environment}'
+      ReservedConcurrentExecutions: 10
+      #AutoPublishAlias: live
       CodeUri: heartbeat-manager/
       Handler: bootstrap
       Runtime: provided.al2023
