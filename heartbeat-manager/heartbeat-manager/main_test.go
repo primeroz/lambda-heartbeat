@@ -7,8 +7,8 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-// TestHandleAlert tests the HandleAlert function
-func TestHandleAlert(t *testing.T) {
+// TestParseAlert tests the HandleAlert function
+func TestParseAlert(t *testing.T) {
 	// Define a sample "watchdog" alert payload
 	payload := `{
 	  "version": "4",
@@ -57,7 +57,7 @@ func TestHandleAlert(t *testing.T) {
 	}
 
 	// Call the Lambda function handler
-	response, err := handleAlert(context.Background(), event)
+	response, err := parseAlert(context.Background(), event)
 	if err != nil {
 		t.Errorf("HandleAlert failed: %v", err)
 		return
@@ -73,8 +73,8 @@ func TestHandleAlert(t *testing.T) {
 	}
 }
 
-// BenchmarkHandleAlert benchmarks the HandleAlert function
-func BenchmarkHandleAlert(b *testing.B) {
+// BenchmarkParseAlert benchmarks the HandleAlert function
+func BenchmarkParseAlert(b *testing.B) {
 	payload := `{
 	  "version": "4",
 	  "groupKey": "example_group",
@@ -122,7 +122,7 @@ func BenchmarkHandleAlert(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := handleAlert(context.Background(), event)
+		_, err := parseAlert(context.Background(), event)
 		if err != nil {
 			b.Fatalf("HandleAlert failed: %v", err)
 		}

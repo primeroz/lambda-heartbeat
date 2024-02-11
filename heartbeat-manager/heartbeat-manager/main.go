@@ -23,7 +23,7 @@ func validateLabels(alert alert.Alert) bool {
 }
 
 // handleAlert handles incoming Alertmanager webhook alerts
-func handleAlert(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func parseAlert(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	var data alert.Data
 	if err := json.Unmarshal([]byte(request.Body), &data); err != nil {
 		log.Printf("Failed to parse Alertmanager webhook payload: %v", err)
@@ -61,6 +61,12 @@ func handleAlert(ctx context.Context, request events.APIGatewayProxyRequest) (ev
 		StatusCode: http.StatusOK,
 		Body:       "Watchdog alert received successfully",
 	}, nil
+}
+
+// handleAlert handles incoming Alertmanager webhook alerts
+func handleAlert(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+  response, err := parseAlert(ctx, request)
+  return response, err
 }
 
 func main() {
