@@ -50,7 +50,8 @@ Resources:
               Effect: Allow
               Action:
                 - cloudwatch:PutMetricData
-              Resource: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:namespace/${MetricsNamespace}"
+              Resource: "arn:aws:cloudwatch:*"
+              #Resource: !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:namespace/${MetricsNamespace}"
       FunctionUrlConfig:
         AuthType: NONE
         InvokeMode: BUFFERED

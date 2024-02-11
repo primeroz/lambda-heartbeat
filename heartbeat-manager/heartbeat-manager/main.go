@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"os"
 	"net/http"
 	"time"
+	"errors"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -56,9 +58,14 @@ func parseAlert(body string) (*Alert, bool, error) {
 func createMetric(ctx context.Context, alert *Alert) error {
 	cwClient := cloudwatch.New(session.New())
 
+	namespace := os.Getenv("METRICS_NAMESPACE")
+	if namespace == "" {
+		return errors.New("METRICS_NAMESPACE environment variable is empty")
+	}
+
 	for _, alert := range alert.Data.Alerts {
 		metricData := MetricData{
-			Namespace: alert.Labels["namespace"], // Adjust accordingly based on your alert structure
+			Namespace: namespace,
 			Dimension: map[string]string{
 				"region":                  alert.Labels["region"],
 				"cloud":                   alert.Labels["cloud"],
@@ -73,7 +80,7 @@ func createMetric(ctx context.Context, alert *Alert) error {
 			Namespace: aws.String(metricData.Namespace),
 			MetricData: []*cloudwatch.MetricDatum{
 				{
-					MetricName: aws.String("WatchdogAlert"),
+					MetricName: aws.String("Watchdog"),
 					Dimensions: []*cloudwatch.Dimension{},
 					Timestamp:  aws.Time(time.Now()),
 					Value:      aws.Float64(1), // Set the metric value
@@ -91,8 +98,7 @@ func createMetric(ctx context.Context, alert *Alert) error {
 // handleAlert handles incoming Alertmanager webhook alerts
 func handleAlert(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	// Parse the alert body
-	//alert, isWatchdog, err := parseAlert(request.Body)
-	_, isWatchdog, err := parseAlert(request.Body)
+	alert, isWatchdog, err := parseAlert(request.Body)
 	if err != nil {
 		log.Printf("Failed to parse Alertmanager webhook payload: %v", err)
 		return events.APIGatewayProxyResponse{
@@ -109,14 +115,14 @@ func handleAlert(ctx context.Context, request events.APIGatewayProxyRequest) (ev
 		}, nil
 	}
 
-	//// Create CloudWatch metric
-	//if err := createMetric(ctx, alert); err != nil {
-	//    log.Printf("Failed to create CloudWatch metric: %v", err)
-	//    return events.APIGatewayProxyResponse{
-	//        StatusCode: http.StatusInternalServerError,
-	//        Body:       "Failed to create CloudWatch metric",
-	//    }, nil
-	//}
+	// Create CloudWatch metric
+	if err := createMetric(ctx, alert); err != nil {
+	    log.Printf("Failed to create CloudWatch metric: %v", err)
+	    return events.APIGatewayProxyResponse{
+	        StatusCode: http.StatusInternalServerError,
+	        Body:       "Failed to create CloudWatch metric",
+	    }, nil
+	}
 
 	// Respond with success message
 	return events.APIGatewayProxyResponse{
