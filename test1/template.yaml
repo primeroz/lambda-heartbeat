@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Heartbeat Manager
+
+  An Heartbeat manager to aggregate multiple sources and alert
+
+Parameters:
+  Debug:
+    Type: String
+    Description: Debug flag
+    Default: "false"
+  Environment: 
+    Type: String
+    Description: environment
+    Default: "development"
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+
+    # You can add LoggingConfig parameters such as the Logformat, Log Group, and SystemLogLevel or ApplicationLogLevel. Learn more here https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html#sam-function-loggingconfig.
+    LoggingConfig:
+      LogFormat: JSON
+Resources:
+  HeartbeatFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      FunctionName: !Sub 'heartbeat-${Environment}'
+      ReservedConcurrentExecutions: 10
+      CodeUri: heartbeat/
+      Handler: heartbeat
+      Runtime: go1.x
+      Architectures:
+      - x86_64
+      AutoPublishAlias: live
+      FunctionUrlConfig:
+        AuthType: NONE
+      #Policies: 
+      #  - Statement:
+      #    - Sid: "AllowS3"
+      #      Effect: Allow
+      #      Action:
+      #      - s3:*
+      #      Resource: 
+      #        - !GetAtt PermissionBucket.Arn
+      #        - Fn::Join:
+      #          - ''
+      #          - - !GetAtt PermissionBucket.Arn
+      #            - '/*'
+      #    - Sid: "AccessConfig"
+      #      Effect: Allow
+      #      Action:
+      #      - secretsmanager:*
+      #      Resource: !Ref SecretConfig
+      #    - Sid: "AllowCreateLog"
+      #      Effect: Allow
+      #      Action:
+      #      - logs:PutLogEvents
+      #      - logs:CreateLogStream
+      #      - logs:CreateLogGroup
+      #      Resource:
+      #      - arn:aws:logs:*:*:log-group:*:*
+      #      - arn:aws:logs:*:*:*
+      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
+        Variables:
+          DEBUG: !Ref Debug
+          #SECRETARN: !Ref SecretConfig
+          APP_ENVIRONMENT: !Ref Environment
+      Tags: 
+        cost-reporter-team: data-plane-infra
+        cost-reporter-service: heartbeat
+        environment: !Ref Environment
+
+  #SecretConfig:
+  #  Type: AWS::SecretsManager::Secret
+  #  Properties: 
+  #    Description: Configuration for okta-k8s-bridge lambda
+  #    Name: !Sub 'okta-k8s-bridge-${Environment}' 
+  #    SecretString: "{}"
+
+Outputs:
+  HeartbeatFunction:
+    Description: First Lambda Function ARN
+    Value: !GetAtt HeartbeatFunction.Arn
+  HeartbeatFunctionIamRole:
+    Description: Implicit IAM Role created for Hello World function
+    Value: !GetAtt HeartbeatFunctionRole.Arn
