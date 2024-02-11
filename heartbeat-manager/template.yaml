@@ -22,6 +22,9 @@ Resources:
       Runtime: provided.al2023
       Architectures:
         - x86_64
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: BUFFERED
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
           PARAM1: VALUE
@@ -33,3 +36,7 @@ Outputs:
   HeartbeatFunctionIamRole:
     Description: "Implicit IAM Role created for Hello World function"
     Value: !GetAtt HeartbeatFunctionRole.Arn
+  HeartbeatFunctionUrlEndpoint:
+    Description: "Heartbeat Function URL Endpoint"
+    Value:
+      Fn::GetAtt: HeartbeatFunctionUrl.FunctionUrl
